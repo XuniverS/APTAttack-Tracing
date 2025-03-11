@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APT Attack Visualization</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<div id="sidebar">
+    <h2>Log History</h2>
+    <ul id="logHistory"></ul>
+</div>
+
+<div id="mainContent">
+    <h1>APT Attack Logs Visualization</h1>
+
+    <div class="upload-container">
+        <div class="upload-box" id="attackUploadBox">
+            <div class="upload-header">
+                <h3>Attack Logs</h3>
+                <p>Drag & Drop or Click to Upload</p>
+                <p>(.log, .txt, max 10 files)</p>
+            </div>
+            <input type="file" id="attackFileInput" multiple accept=".log,.txt"/>
+            <div class="file-list" id="attackFileList"></div>
+        </div>
+
+        <div class="upload-box" id="tcpUploadBox">
+            <div class="upload-header">
+                <h3>TCP Logs</h3>
+                <p>Drag & Drop or Click to Upload</p>
+                <p>(.log, .txt, max 10 files)</p>
+            </div>
+            <input type="file" id="tcpFileInput" multiple accept=".log,.txt"/>
+            <div class="file-list" id="tcpFileList"></div>
+        </div>
+    </div>
+
+    <div style="text-align: center;">
+        <button id="uploadBtn">Analyze Logs</button>
+    </div>
+
+    <h2>Logs Data</h2>
+    <div id="logDisplay"></div>
+
+    <h2>Attack Visualization</h2>
+    <canvas id="attackChart"></canvas>
+</div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>
