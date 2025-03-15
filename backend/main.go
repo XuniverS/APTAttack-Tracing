@@ -1,8 +1,8 @@
 package main
 
 import (
+	"awesomeProject1/backend/routes"
 	"awesomeProject1/backend/utils"
-	"awesomeProject1/backend/utils/routes"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"path/filepath"
