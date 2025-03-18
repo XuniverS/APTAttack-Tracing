@@ -20,7 +20,7 @@ import (
 // 攻击日志格式示例：
 // 1 2019-07-20 05:38:00 1 209.147.138.11 1 fake_tcpflows 192.168.3.29 1
 const (
-	attackLogMinFields = 8 // 根据实际字段数调整
+	attackLogMinFields = 3 // 根据实际字段数调整
 	attackTimeColumn   = 1 // 日期字段位置
 	attackTimeFormat   = "2006-01-02 15:04:05"
 )
@@ -28,17 +28,24 @@ const (
 // TCP日志格式示例：
 // 1 2019-07-16 05:05:00 2019-07-16 05:05:20 ...
 const (
-	tcpLogMinFields   = 25 // 根据实际字段数调整
-	tcpStartTimeCol   = 1  // 开始时间字段位置
-	tcpEndTimeCol     = 3  // 结束时间字段位置
-	tcpSrcIPCol       = 7  // 源IP字段位置
-	tcpSrcPortCol     = 8  // 源端口字段位置
-	tcpDestIPCol      = 9  // 目标IP字段位置
-	tcpDestPortCol    = 10 // 目标端口字段位置
-	tcpPacketsSentCol = 19 // 发送包数字段位置
-	tcpBytesSentCol   = 20 // 发送字节数字段位置
-	tcpDurationCol    = 21 // 持续时间字段位置
-	tcpStatusCodeCol  = 24 // 状态码字段位置
+	tcpLogMinFields     = 10
+	tcpLogTimeCol       = 1  // tcp日志记录时间
+	tcpStartTimeCol     = 3  // 流开始时间
+	tcpEndTimeCol       = 5  // 流结束时间
+	tcpConnectionTime   = 7  // tcp连接建立时间
+	tcpSimplePosition   = 10 // 标志位
+	tcpSrcIPCol         = 11 // 源IP
+	tcpSrcPortCol       = 12 // 源端口
+	tcpDestIPCol        = 13 // 目标IP
+	tcpDestPortCol      = 14 // 目标端口
+	tcpFragmentFlag     = 17 // 分片标志
+	tcpStatusCodeCol    = 21 // 连接状态码
+	tcpDurationCol      = 22 // 持续时间
+	tcpBytesSentCol     = 26 // 发送字节数
+	tcpBytesReceveCol   = 27 // 接收字节数
+	tcpPacketsSentCol   = 29 // 发送包数
+	tcpCustomStatusCode = 45 // 自定义状态码
+	tcpAppProtocol      = 47 // 应用层协议
 )
 
 func ParseAndSaveLogFile(fileName string, fileType string) {
@@ -76,9 +83,12 @@ func ParseAndSaveLogFile(fileName string, fileType string) {
 	}
 }
 
-// 解析攻击日志（修正索引）
+// 解析攻击日志
 func parseAttackLine(line string) (utils.AttackLog, bool) {
 	parts := strings.Fields(line)
+	if parts[0] == "" {
+		return utils.AttackLog{}, false
+	}
 	if len(parts) < attackLogMinFields {
 		log.Printf("攻击日志字段不足: %s", line)
 		return utils.AttackLog{}, false
@@ -103,7 +113,7 @@ func parseAttackLine(line string) (utils.AttackLog, bool) {
 	}, true
 }
 
-// 解析TCP日志（修正索引）
+// 解析TCP日志
 func parseTcpLine(line string) (utils.TcpLog, bool) {
 	parts := strings.Fields(line)
 	if len(parts) < tcpLogMinFields {
@@ -111,21 +121,52 @@ func parseTcpLine(line string) (utils.TcpLog, bool) {
 		return utils.TcpLog{}, false
 	}
 
-	// 解析时间字段
-	startTime, _ := time.Parse(attackTimeFormat, parts[tcpStartTimeCol]+" "+parts[tcpStartTimeCol+1])
-	endTime, _ := time.Parse(attackTimeFormat, parts[tcpEndTimeCol]+" "+parts[tcpEndTimeCol+1])
+	logTimeStr := parts[tcpLogTimeCol] + " " + parts[tcpLogTimeCol+1]
+	logTime, err := time.Parse(attackTimeFormat, logTimeStr)
+	if err != nil {
+		log.Printf("TCP日志记录时间解析失败: %v | 行内容: %s", err, line)
+		return utils.TcpLog{}, false
+	}
+
+	startTimeStr := parts[tcpStartTimeCol] + " " + parts[tcpStartTimeCol+1]
+	startTime, err := time.Parse(attackTimeFormat, startTimeStr)
+	if err != nil {
+		log.Printf("TCP日志开始时间解析失败: %v | 行内容: %s", err, line)
+		return utils.TcpLog{}, false
+	}
+
+	endTimeStr := parts[tcpEndTimeCol] + " " + parts[tcpEndTimeCol+1]
+	endTime, err := time.Parse(attackTimeFormat, endTimeStr)
+	if err != nil {
+		log.Printf("TCP日志结束时间解析失败: %v | 行内容: %s", err, line)
+		return utils.TcpLog{}, false
+	}
+
+	tcpStartTimeStr := parts[tcpConnectionTime] + " " + parts[tcpConnectionTime+1]
+	tcpConnectTime, err := time.Parse(attackTimeFormat, tcpStartTimeStr)
+	if err != nil {
+		log.Printf("TCP连接开始时间解析失败: %v | 行内容: %s", err, line)
+		return utils.TcpLog{}, false
+	}
 
 	return utils.TcpLog{
-		StartTime:   startTime,
-		EndTime:     endTime,
-		SrcIP:       parts[tcpSrcIPCol],
-		SrcPort:     safeAtoi(parts[tcpSrcPortCol]),
-		DestIP:      parts[tcpDestIPCol],
-		DestPort:    safeAtoi(parts[tcpDestPortCol]),
-		PacketsSent: safeAtoi(parts[tcpPacketsSentCol]),
-		BytesSent:   safeAtoi(parts[tcpBytesSentCol]),
-		Duration:    safeAtof(parts[tcpDurationCol]),
-		StatusCode:  safeAtoi(parts[tcpStatusCodeCol]),
+		LogTime:        logTime,
+		StartTime:      startTime,
+		EndTime:        endTime,
+		TcpConnectTime: tcpConnectTime,
+		Flags:          safeAtoi(parts[tcpSimplePosition]),
+		SrcIP:          parts[tcpSrcIPCol],
+		SrcPort:        safeAtoi(parts[tcpSrcPortCol]),
+		DestIP:         parts[tcpDestIPCol],
+		DestPort:       safeAtoi(parts[tcpDestPortCol]),
+		FragmentFlag:   safeAtoi(parts[tcpFragmentFlag]),
+		StatusCode:     safeAtoi(parts[tcpStatusCodeCol]),
+		Duration:       safeAtof(parts[tcpDurationCol]),
+		BytesSent:      safeAtoi(parts[tcpBytesSentCol]),
+		BytesReceived:  safeAtoi(parts[tcpBytesReceveCol]),
+		PacketsSent:    safeAtoi(parts[tcpPacketsSentCol]),
+		CustomStatus:   safeAtoi(parts[tcpCustomStatusCode]),
+		AppProtocol:    parts[tcpAppProtocol], // 注意：协议名为字符串，无需转换
 	}, true
 }
 
