@@ -162,8 +162,8 @@ func parseTcpLine(line string) (utils.TcpLog, bool) {
 		FragmentFlag:   safeAtoi(parts[tcpFragmentFlag]),
 		StatusCode:     safeAtoi(parts[tcpStatusCodeCol]),
 		Duration:       safeAtof(parts[tcpDurationCol]),
-		BytesSent:      safeAtoi(parts[tcpBytesSentCol]),
-		BytesReceived:  safeAtoi(parts[tcpBytesReceveCol]),
+		BytesSent:      safeAtoi64(parts[tcpBytesSentCol]),
+		BytesReceived:  safeAtoi64(parts[tcpBytesReceveCol]),
 		PacketsSent:    safeAtoi(parts[tcpPacketsSentCol]),
 		CustomStatus:   safeAtoi(parts[tcpCustomStatusCode]),
 		AppProtocol:    parts[tcpAppProtocol], // 注意：协议名为字符串，无需转换
@@ -257,6 +257,34 @@ func safeAtoi(s string) int {
 	v, err := strconv.Atoi(cleanStr)
 	if err != nil {
 		log.Printf("整数转换失败: %s (原始值)", s)
+		return 0
+	}
+	return v
+}
+
+func safeAtoi64(s string) int64 {
+	if s == "" {
+		return 0
+	}
+
+	// 处理特殊字符（冒号、逗号等）
+	cleanStr := strings.ReplaceAll(s, ":", "")       // 移除时间分隔符
+	cleanStr = strings.ReplaceAll(cleanStr, ",", "") // 移除数字千分位分隔符
+
+	// 使用 ParseInt 替代 Atoi 实现更精确的控制
+	v, err := strconv.ParseInt(cleanStr, 10, 64) // 10进制，64位整数[2](@ref)
+	if err != nil {
+		if numError, ok := err.(*strconv.NumError); ok {
+			// 详细错误分类处理
+			switch numError.Err {
+			case strconv.ErrRange:
+				log.Printf("数值超出int64范围: %s (原始值 %s)", numError.Err, s)
+			case strconv.ErrSyntax:
+				log.Printf("非法数字格式: %s (原始值 %s)", numError.Err, s)
+			}
+		} else {
+			log.Printf("未知转换错误: %s (原始值 %s)", err, s)
+		}
 		return 0
 	}
 	return v
