@@ -28,24 +28,26 @@ const (
 // TCP日志格式示例：
 // 1 2019-07-16 05:05:00 2019-07-16 05:05:20 ...
 const (
-	tcpLogMinFields     = 10
-	tcpLogTimeCol       = 1  // tcp日志记录时间
-	tcpStartTimeCol     = 3  // 流开始时间
-	tcpEndTimeCol       = 5  // 流结束时间
-	tcpConnectionTime   = 7  // tcp连接建立时间
-	tcpSimplePosition   = 10 // 标志位
-	tcpSrcIPCol         = 11 // 源IP
-	tcpSrcPortCol       = 12 // 源端口
-	tcpDestIPCol        = 13 // 目标IP
-	tcpDestPortCol      = 14 // 目标端口
-	tcpFragmentFlag     = 17 // 分片标志
-	tcpStatusCodeCol    = 21 // 连接状态码
-	tcpDurationCol      = 22 // 持续时间
-	tcpBytesSentCol     = 26 // 发送字节数
-	tcpBytesReceveCol   = 27 // 接收字节数
-	tcpPacketsSentCol   = 29 // 发送包数
-	tcpCustomStatusCode = 45 // 自定义状态码
-	tcpAppProtocol      = 47 // 应用层协议
+	tcpLogMinFields   = 30
+	tcpLogTimeCol     = 1
+	tcpStartTimeCol   = 3
+	tcpEndTimeCol     = 5
+	tcpConnectionTime = 7
+	tcpFlowStatus     = 9
+	tcpDuration       = 10
+	tcpServerIP       = 11
+	tcpServerPort     = 12
+	tcpClientIP       = 13
+	tcpClientPort     = 14
+	tcpTTLServer      = 15
+	tcpTTLClient      = 16
+	tcpProtocol       = 21
+	tcpClientPLR      = 22 // 客户端丢包
+	tcpServerPLR      = 25 // 服务器丢包
+	tcpDownBPS        = 29 // 下行吞吐
+	tcpUpBPS          = 30 // 上行吞吐
+	tcpDownBytes      = 33
+	tcpUpBytes        = 34
 )
 
 func ParseAndSaveLogFile(fileName string, fileType string) {
@@ -121,6 +123,7 @@ func parseTcpLine(line string) (utils.TcpLog, bool) {
 		return utils.TcpLog{}, false
 	}
 
+	// 解析时间字段
 	logTimeStr := parts[tcpLogTimeCol] + " " + parts[tcpLogTimeCol+1]
 	logTime, err := time.Parse(attackTimeFormat, logTimeStr)
 	if err != nil {
@@ -142,31 +145,38 @@ func parseTcpLine(line string) (utils.TcpLog, bool) {
 		return utils.TcpLog{}, false
 	}
 
-	tcpStartTimeStr := parts[tcpConnectionTime] + " " + parts[tcpConnectionTime+1]
-	tcpConnectTime, err := time.Parse(attackTimeFormat, tcpStartTimeStr)
+	establishedTimeStr := parts[tcpConnectionTime] + " " + parts[tcpConnectionTime+1]
+	establishedTime, err := time.Parse(attackTimeFormat, establishedTimeStr)
 	if err != nil {
-		log.Printf("TCP连接开始时间解析失败: %v | 行内容: %s", err, line)
+		log.Printf("TCP连接时间解析失败: %v | 行内容: %s", err, line)
 		return utils.TcpLog{}, false
 	}
 
+	// 解析其他字段
 	return utils.TcpLog{
-		LogTime:        logTime,
-		StartTime:      startTime,
-		EndTime:        endTime,
-		TcpConnectTime: tcpConnectTime,
-		Flags:          safeAtoi(parts[tcpSimplePosition]),
-		SrcIP:          parts[tcpSrcIPCol],
-		SrcPort:        safeAtoi(parts[tcpSrcPortCol]),
-		DestIP:         parts[tcpDestIPCol],
-		DestPort:       safeAtoi(parts[tcpDestPortCol]),
-		FragmentFlag:   safeAtoi(parts[tcpFragmentFlag]),
-		StatusCode:     safeAtoi(parts[tcpStatusCodeCol]),
-		Duration:       safeAtof(parts[tcpDurationCol]),
-		BytesSent:      safeAtoi64(parts[tcpBytesSentCol]),
-		BytesReceived:  safeAtoi64(parts[tcpBytesReceveCol]),
-		PacketsSent:    safeAtoi(parts[tcpPacketsSentCol]),
-		CustomStatus:   safeAtoi(parts[tcpCustomStatusCode]),
-		AppProtocol:    parts[tcpAppProtocol], // 注意：协议名为字符串，无需转换
+		LogTime:         logTime,
+		StartTime:       startTime,
+		EndTime:         endTime,
+		EstablishedTime: establishedTime,
+		FlowStatus:      safeAtoi(parts[tcpFlowStatus]),
+		Duration:        safeAtof(parts[tcpDuration]),
+		ServerIP:        parts[tcpServerIP],
+		ServerPort:      safeAtoi(parts[tcpServerPort]),
+		ClientIP:        parts[tcpClientIP],
+		ClientPort:      safeAtoi(parts[tcpClientPort]),
+		TTLServer:       safeAtoi(parts[tcpTTLServer]),
+		TTLClient:       safeAtoi(parts[tcpTTLClient]),
+		Protocol:        safeAtoi(parts[tcpProtocol]),
+		ClientPLR:       safeAtof(parts[tcpClientPLR]),
+		ServerPLR:       safeAtof(parts[tcpServerPLR]),
+		DownBPS:         safeAtoi64(parts[tcpDownBPS]),
+		UpBPS:           safeAtoi64(parts[tcpUpBPS]),
+		DownBytes:       safeAtoi64(parts[tcpDownBytes]),
+		UpBytes:         safeAtoi64(parts[tcpUpBytes]),
+
+		PacketsSent:   safeAtoi(parts[31]),
+		PacketReceive: safeAtoi(parts[32]),
+		CustomStatus:  safeAtoi(parts[37]),
 	}, true
 }
 

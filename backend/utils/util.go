@@ -23,24 +23,33 @@ type AttackLog struct {
 }
 
 type TcpLog struct {
-	ID             uint      `gorm:"primaryKey"`
-	LogTime        time.Time `gorm:"column:log_time"`
-	StartTime      time.Time `gorm:"column:start_time"`
-	EndTime        time.Time `gorm:"column:end_time"`
-	TcpConnectTime time.Time `gorm:"column:tcp_connect_time"`
-	Flags          int       `gorm:"column:flags"`
-	SrcIP          string    `gorm:"column:src_ip"`
-	SrcPort        int       `gorm:"column:src_port"`
-	DestIP         string    `gorm:"column:dest_ip"`
-	DestPort       int       `gorm:"column:dest_port"`
-	FragmentFlag   int       `gorm:"column:fragment_flag"`
-	StatusCode     int       `gorm:"column:status_code"`
-	Duration       float64   `gorm:"column:duration"`
-	BytesSent      int64     `gorm:"column:bytes_sent"`
-	BytesReceived  int64     `gorm:"column:bytes_received"`
-	PacketsSent    int       `gorm:"column:packets_sent"`
-	CustomStatus   int       `gorm:"column:custom_status"`
-	AppProtocol    string    `gorm:"column:app_protocol"`
+	ID              uint      `gorm:"primaryKey"`
+	LogTime         time.Time `gorm:"column:log_time"`         // SAVETIME
+	StartTime       time.Time `gorm:"column:start_time"`       // BEGINTIME
+	EndTime         time.Time `gorm:"column:end_time"`         // ENDTIME
+	EstablishedTime time.Time `gorm:"column:established_time"` // ESTABLISHTIME（重命名更准确）
+	FlowStatus      int       `gorm:"column:flow_status"`      // FLOWSTATUS（新增）
+	Duration        float64   `gorm:"column:duration"`         // SECONDS
+	ServerIP        string    `gorm:"column:server_ip"`        // SERVERIP（原DestIP）
+	ServerPort      int       `gorm:"column:server_port"`      // SERVERPORT（原DestPort）
+	ClientIP        string    `gorm:"column:client_ip"`        // CLIENTIP（原SrcIP）
+	ClientPort      int       `gorm:"column:client_port"`      // CLIENTPORT（原SrcPort）
+	TTLServer       int       `gorm:"column:ttl_server"`       // TTLSERVER（新增）
+	TTLClient       int       `gorm:"column:ttl_client"`       // TTLCLIENT（新增）
+	Protocol        int       `gorm:"column:protocol"`         // PROTOCOL（原AppProtocol）
+	ClientPLR       float64   `gorm:"column:client_plr"`       // CLIENTPLR（新增）
+	ServerPLR       float64   `gorm:"column:server_plr"`       // SERVERPLR（新增）
+	DownBPS         int64     `gorm:"column:down_bps"`         // DOWNBPS（新增）
+	UpBPS           int64     `gorm:"column:up_bps"`           // UPBPS（新增）
+	DownBytes       int64     `gorm:"column:down_bytes"`       // DOWNBYTES（原BytesReceived）
+	UpBytes         int64     `gorm:"column:up_bytes"`         // UPBYTES（原BytesSent）
+
+	// 保留字段（根据实际需要）
+	FragmentFlag  int `gorm:"column:fragment_flag"`
+	StatusCode    int `gorm:"column:status_code"`
+	PacketsSent   int `gorm:"column:packets_sent"`
+	PacketReceive int `gorm:"column:packets_receive"`
+	CustomStatus  int `gorm:"column:custom_status"`
 }
 
 // APT事件主模型

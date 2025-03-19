@@ -195,3 +195,8 @@ func loadThreatIntel() map[string]bool {
 		"45.76.188.129":   true,
 	}
 }
+
+func aaa() string {
+	a := EvenomalyTraffic
+	return a
+}
