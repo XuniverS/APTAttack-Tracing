@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"awesomeProject1/backend/utils"
 	"bufio"
 	"fmt"
 	"log"
@@ -15,18 +14,17 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"awesomeProject1/backend/analyzePipe"
+	"awesomeProject1/backend/utils"
 )
 
-// 攻击日志格式示例：
-// 1 2019-07-20 05:38:00 1 209.147.138.11 1 fake_tcpflows 192.168.3.29 1
 const (
 	attackLogMinFields = 3 // 根据实际字段数调整
 	attackTimeColumn   = 1 // 日期字段位置
 	attackTimeFormat   = "2006-01-02 15:04:05"
 )
 
-// TCP日志格式示例：
-// 1 2019-07-16 05:05:00 2019-07-16 05:05:20 ...
 const (
 	tcpLogMinFields   = 30
 	tcpLogTimeCol     = 1
@@ -50,6 +48,11 @@ const (
 	tcpUpBytes        = 34
 )
 
+var (
+	RawAttackData []utils.AttackLog
+	RawTcpData    []utils.TcpLog
+)
+
 func ParseAndSaveLogFile(fileName string, fileType string) {
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -70,12 +73,14 @@ func ParseAndSaveLogFile(fileName string, fileType string) {
 				if err := utils.LogDB.Create(&logData).Error; err != nil {
 					log.Printf("攻击日志保存失败 行%d: %v", lineCount, err)
 				}
+				RawAttackData = append(RawAttackData, logData)
 			}
 		case "tcp":
 			if logData, ok := parseTcpLine(line); ok {
 				if err := utils.LogDB.Create(&logData).Error; err != nil {
 					log.Printf("TCP日志保存失败 行%d: %v", lineCount, err)
 				}
+				RawTcpData = append(RawTcpData, logData)
 			}
 		}
 	}
@@ -251,7 +256,10 @@ func UploadHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"errors": errors})
 		return
 	}
-
+	if !analyzePipe.AnalyzePipeline() {
+		c.JSON(http.StatusInternalServerError, gin.H{"errors": errors})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "文件处理完成"})
 }
 
