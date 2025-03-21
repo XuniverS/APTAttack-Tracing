@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"awesomeProject1/backend/utils"
 	"bufio"
 	"fmt"
 	"log"
@@ -15,30 +14,43 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"awesomeProject1/backend/analyzePipe"
+	"awesomeProject1/backend/utils"
 )
 
-// 攻击日志格式示例：
-// 1 2019-07-20 05:38:00 1 209.147.138.11 1 fake_tcpflows 192.168.3.29 1
 const (
-	attackLogMinFields = 8 // 根据实际字段数调整
+	attackLogMinFields = 3 // 根据实际字段数调整
 	attackTimeColumn   = 1 // 日期字段位置
 	attackTimeFormat   = "2006-01-02 15:04:05"
 )
 
-// TCP日志格式示例：
-// 1 2019-07-16 05:05:00 2019-07-16 05:05:20 ...
 const (
-	tcpLogMinFields   = 25 // 根据实际字段数调整
-	tcpStartTimeCol   = 1  // 开始时间字段位置
-	tcpEndTimeCol     = 3  // 结束时间字段位置
-	tcpSrcIPCol       = 7  // 源IP字段位置
-	tcpSrcPortCol     = 8  // 源端口字段位置
-	tcpDestIPCol      = 9  // 目标IP字段位置
-	tcpDestPortCol    = 10 // 目标端口字段位置
-	tcpPacketsSentCol = 19 // 发送包数字段位置
-	tcpBytesSentCol   = 20 // 发送字节数字段位置
-	tcpDurationCol    = 21 // 持续时间字段位置
-	tcpStatusCodeCol  = 24 // 状态码字段位置
+	tcpLogMinFields   = 30
+	tcpLogTimeCol     = 1
+	tcpStartTimeCol   = 3
+	tcpEndTimeCol     = 5
+	tcpConnectionTime = 7
+	tcpFlowStatus     = 9
+	tcpDuration       = 10
+	tcpServerIP       = 11
+	tcpServerPort     = 12
+	tcpClientIP       = 13
+	tcpClientPort     = 14
+	tcpTTLServer      = 15
+	tcpTTLClient      = 16
+	tcpProtocol       = 21
+	tcpClientPLR      = 22 // 客户端丢包
+	tcpServerPLR      = 25 // 服务器丢包
+	tcpDownBPS        = 29 // 下行吞吐
+	tcpUpBPS          = 30 // 上行吞吐
+	tcpDownBytes      = 33
+	tcpUpBytes        = 34
+)
+
+var (
+	RawAttackData []utils.AttackLog
+	RawTcpData    []utils.TcpLog
 )
 
 func ParseAndSaveLogFile(fileName string, fileType string) {
@@ -61,12 +73,14 @@ func ParseAndSaveLogFile(fileName string, fileType string) {
 				if err := utils.LogDB.Create(&logData).Error; err != nil {
 					log.Printf("攻击日志保存失败 行%d: %v", lineCount, err)
 				}
+				RawAttackData = append(RawAttackData, logData)
 			}
 		case "tcp":
 			if logData, ok := parseTcpLine(line); ok {
 				if err := utils.LogDB.Create(&logData).Error; err != nil {
 					log.Printf("TCP日志保存失败 行%d: %v", lineCount, err)
 				}
+				RawTcpData = append(RawTcpData, logData)
 			}
 		}
 	}
@@ -76,9 +90,12 @@ func ParseAndSaveLogFile(fileName string, fileType string) {
 	}
 }
 
-// 解析攻击日志（修正索引）
+// 解析攻击日志
 func parseAttackLine(line string) (utils.AttackLog, bool) {
 	parts := strings.Fields(line)
+	if parts[0] == "" {
+		return utils.AttackLog{}, false
+	}
 	if len(parts) < attackLogMinFields {
 		log.Printf("攻击日志字段不足: %s", line)
 		return utils.AttackLog{}, false
@@ -103,7 +120,7 @@ func parseAttackLine(line string) (utils.AttackLog, bool) {
 	}, true
 }
 
-// 解析TCP日志（修正索引）
+// 解析TCP日志
 func parseTcpLine(line string) (utils.TcpLog, bool) {
 	parts := strings.Fields(line)
 	if len(parts) < tcpLogMinFields {
@@ -112,20 +129,59 @@ func parseTcpLine(line string) (utils.TcpLog, bool) {
 	}
 
 	// 解析时间字段
-	startTime, _ := time.Parse(attackTimeFormat, parts[tcpStartTimeCol]+" "+parts[tcpStartTimeCol+1])
-	endTime, _ := time.Parse(attackTimeFormat, parts[tcpEndTimeCol]+" "+parts[tcpEndTimeCol+1])
+	logTimeStr := parts[tcpLogTimeCol] + " " + parts[tcpLogTimeCol+1]
+	logTime, err := time.Parse(attackTimeFormat, logTimeStr)
+	if err != nil {
+		log.Printf("TCP日志记录时间解析失败: %v | 行内容: %s", err, line)
+		return utils.TcpLog{}, false
+	}
 
+	startTimeStr := parts[tcpStartTimeCol] + " " + parts[tcpStartTimeCol+1]
+	startTime, err := time.Parse(attackTimeFormat, startTimeStr)
+	if err != nil {
+		log.Printf("TCP日志开始时间解析失败: %v | 行内容: %s", err, line)
+		return utils.TcpLog{}, false
+	}
+
+	endTimeStr := parts[tcpEndTimeCol] + " " + parts[tcpEndTimeCol+1]
+	endTime, err := time.Parse(attackTimeFormat, endTimeStr)
+	if err != nil {
+		log.Printf("TCP日志结束时间解析失败: %v | 行内容: %s", err, line)
+		return utils.TcpLog{}, false
+	}
+
+	establishedTimeStr := parts[tcpConnectionTime] + " " + parts[tcpConnectionTime+1]
+	establishedTime, err := time.Parse(attackTimeFormat, establishedTimeStr)
+	if err != nil {
+		log.Printf("TCP连接时间解析失败: %v | 行内容: %s", err, line)
+		return utils.TcpLog{}, false
+	}
+
+	// 解析其他字段
 	return utils.TcpLog{
-		StartTime:   startTime,
-		EndTime:     endTime,
-		SrcIP:       parts[tcpSrcIPCol],
-		SrcPort:     safeAtoi(parts[tcpSrcPortCol]),
-		DestIP:      parts[tcpDestIPCol],
-		DestPort:    safeAtoi(parts[tcpDestPortCol]),
-		PacketsSent: safeAtoi(parts[tcpPacketsSentCol]),
-		BytesSent:   safeAtoi(parts[tcpBytesSentCol]),
-		Duration:    safeAtof(parts[tcpDurationCol]),
-		StatusCode:  safeAtoi(parts[tcpStatusCodeCol]),
+		LogTime:         logTime,
+		StartTime:       startTime,
+		EndTime:         endTime,
+		EstablishedTime: establishedTime,
+		FlowStatus:      safeAtoi(parts[tcpFlowStatus]),
+		Duration:        safeAtof(parts[tcpDuration]),
+		ServerIP:        parts[tcpServerIP],
+		ServerPort:      safeAtoi(parts[tcpServerPort]),
+		ClientIP:        parts[tcpClientIP],
+		ClientPort:      safeAtoi(parts[tcpClientPort]),
+		TTLServer:       safeAtoi(parts[tcpTTLServer]),
+		TTLClient:       safeAtoi(parts[tcpTTLClient]),
+		Protocol:        safeAtoi(parts[tcpProtocol]),
+		ClientPLR:       safeAtof(parts[tcpClientPLR]),
+		ServerPLR:       safeAtof(parts[tcpServerPLR]),
+		DownBPS:         safeAtoi64(parts[tcpDownBPS]),
+		UpBPS:           safeAtoi64(parts[tcpUpBPS]),
+		DownBytes:       safeAtoi64(parts[tcpDownBytes]),
+		UpBytes:         safeAtoi64(parts[tcpUpBytes]),
+
+		PacketsSent:   safeAtoi(parts[31]),
+		PacketReceive: safeAtoi(parts[32]),
+		CustomStatus:  safeAtoi(parts[37]),
 	}, true
 }
 
@@ -200,7 +256,10 @@ func UploadHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"errors": errors})
 		return
 	}
-
+	if !analyzePipe.AnalyzePipeline() {
+		c.JSON(http.StatusInternalServerError, gin.H{"errors": errors})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "文件处理完成"})
 }
 
@@ -216,6 +275,34 @@ func safeAtoi(s string) int {
 	v, err := strconv.Atoi(cleanStr)
 	if err != nil {
 		log.Printf("整数转换失败: %s (原始值)", s)
+		return 0
+	}
+	return v
+}
+
+func safeAtoi64(s string) int64 {
+	if s == "" {
+		return 0
+	}
+
+	// 处理特殊字符（冒号、逗号等）
+	cleanStr := strings.ReplaceAll(s, ":", "")       // 移除时间分隔符
+	cleanStr = strings.ReplaceAll(cleanStr, ",", "") // 移除数字千分位分隔符
+
+	// 使用 ParseInt 替代 Atoi 实现更精确的控制
+	v, err := strconv.ParseInt(cleanStr, 10, 64) // 10进制，64位整数[2](@ref)
+	if err != nil {
+		if numError, ok := err.(*strconv.NumError); ok {
+			// 详细错误分类处理
+			switch numError.Err {
+			case strconv.ErrRange:
+				log.Printf("数值超出int64范围: %s (原始值 %s)", numError.Err, s)
+			case strconv.ErrSyntax:
+				log.Printf("非法数字格式: %s (原始值 %s)", numError.Err, s)
+			}
+		} else {
+			log.Printf("未知转换错误: %s (原始值 %s)", err, s)
+		}
 		return 0
 	}
 	return v
