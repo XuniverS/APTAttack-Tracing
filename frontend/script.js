@@ -1,5 +1,5 @@
 $(document).ready(function() {
-    const MAX_FILES = 10;
+    const MAX_FILES = 1000;
     let files = {
         attack: [],
         tcp: []

@@ -5,6 +5,7 @@ import (
 	"awesomeProject1/backend/utils"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"log"
 	"path/filepath"
 	"runtime"
 )
@@ -17,6 +18,12 @@ func getFrontendPath() string {
 
 func init() {
 	utils.InitDatabase()
+	if err := utils.InitNeo4j(
+		"bolt://localhost:7687",
+		"neo4j",
+		"C0137yx."); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func main() {

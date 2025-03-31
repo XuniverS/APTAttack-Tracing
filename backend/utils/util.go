@@ -76,3 +76,12 @@ type APTEvent struct {
 // 元数据结构示例（根据检测规则动态生成）
 type EventMetadata struct {
 }
+
+func SliceContainsString(slice []string, target string) bool {
+	for _, item := range slice {
+		if item == target {
+			return true
+		}
+	}
+	return false
+}

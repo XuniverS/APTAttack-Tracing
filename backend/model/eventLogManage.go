@@ -12,8 +12,8 @@ import (
 const (
 	preAttackWindow      = 24 * time.Hour // 攻击前分析时间窗口
 	postAttackWindow     = 48 * time.Hour // 攻击后分析时间窗口
-	freqThreshold        = 50             // 连接频率阈值（次/小时）
-	newIPThreshold       = 5              // 新IP数量阈值
+	freqThreshold        = 10             // 连接频率阈值（次/小时）
+	newIPThreshold       = 3              // 新IP数量阈值
 	maliciousIPCheck     = true           // 是否启用恶意IP检查
 	zombieWindow         = 72 * time.Hour // 肉鸡检测时间窗口
 	zombieNewIPThreshold = 10             // 肉鸡新IP连接阈值
