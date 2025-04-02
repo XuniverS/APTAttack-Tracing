@@ -117,7 +117,7 @@ func (a *NAAnalyzer) analyzeAttacker(attack utils.AttackLog) {
 		a.detectConnectionFrequency, // 高频连接检测
 		a.detectNewIPConnections,    // 新IP连接检测
 		a.detectPortScanPattern,     // 端口扫描检测
-		a.detectProtocolAnomalies,   // 新增协议异常检测
+		a.detectProtocolAnomalies,   // 协议异常检测
 	}
 
 	var events []utils.APTEvent
@@ -160,7 +160,7 @@ func (a *NAAnalyzer) analyzeVictim(attack utils.AttackLog) {
 	}
 
 	zombieIPs := a.collectZombieIPs(flows)
-	a.analyzeZombies(zombieIPs, attack)
+	a.analyzeZombies(zombieIPs, attack) //肉鸡检测
 
 	var events []utils.APTEvent
 	for _, detect := range detections {
