@@ -1,3 +1,4 @@
+// analyzePipeline.go
 package analyzePipe
 
 import (
@@ -55,7 +56,7 @@ func savePathsToNeo4j(paths []model.AttackPath) error {
 		_, err := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 			// 创建路径节点
 			_, err := tx.Run(
-				`CREATE (p:AttackPath {confidence: $conf}) 
+				`CREATE (p:AttackPath {confidence: $conf})
 				WITH p
 				UNWIND $phases AS phase
 				MATCH (n:AttackPhase {phase: phase})

@@ -7,7 +7,6 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"math"
-	"strings"
 	"sync"
 	"time"
 )
@@ -15,22 +14,30 @@ import (
 const (
 	PhaseInitialAccess    = "InitialAccess"
 	PhaseLateralMovement  = "LateralMovement"
-	PhaseC2               = "CommandControl"
+	PhaseC2               = "CommandAndControl"
 	PhaseDataExfiltration = "DataExfiltration"
+	PhaseDefenseEvasion   = "DefenseEvasion"
+	PhaseCredentialAccess = "CredentialAccess"
 )
 
 var eventTypeMapping = map[string]string{
-	"BruteForce":      PhaseInitialAccess,
-	"ExploitAttempt":  PhaseInitialAccess,
-	"Phishing":        PhaseInitialAccess,
-	"PortScan":        PhaseLateralMovement,
-	"SMBScan":         PhaseLateralMovement,
-	"RDPConnection":   PhaseLateralMovement,
-	"Beaconing":       PhaseC2,
-	"LongConnection":  PhaseC2,
-	"DNSQuery":        PhaseC2,
-	"DataTransfer":    PhaseDataExfiltration,
-	"LargeFileUpload": PhaseDataExfiltration,
+	// 攻击者检测事件
+	EventBruteForce:    PhaseInitialAccess,   // 高频暴力破解
+	EventNewConnection: PhaseInitialAccess,   // 新IP连接
+	EventPortScan:      PhaseLateralMovement, // 端口扫描
+	EventProtoAnomaly:  PhaseLateralMovement, // 协议异常
+
+	// 受害者检测事件
+	EventReverseConnection:   PhaseC2,               // 反向连接
+	EventDataTransfer:        PhaseDataExfiltration, // 数据渗出
+	EventMaliciousConnection: PhaseInitialAccess,    // 恶意IP连接
+	EventLongConnection:      PhaseC2,               // 长连接
+
+	// 肉鸡检测事件
+	EventZombieActivity:        PhaseC2, // 肉鸡新连接
+	"ZOMBIE_ReverseConnection": PhaseC2, // 肉鸡反向连接
+	"ZOMBIE_ACTIVITY_SPIKE":    PhaseC2, // 肉鸡活动激增
+	"ZOMBIE_MALICIOUS_CONN":    PhaseC2, // 肉鸡恶意连接
 }
 
 type AttackNode struct {
@@ -98,8 +105,8 @@ func (tc *TemporalCorrelator) DetectPhaseTransitions(start, end time.Time) ([]At
 
 	var events []*utils.APTEvent
 	if err := tc.db.Unscoped().
-		Where("start_time BETWEEN ? AND ?", start, end).
-		Order("start_time ASC").
+		Where("created_at BETWEEN ? AND ?", start.Format("2006-01-02 15:04"), end.Format("2006-01-02 15:04")).
+		Order("created_at ASC").
 		Find(&events).Error; err != nil {
 		log.Printf("[错误] 数据库查询失败: %v", err)
 		return nil, err
@@ -147,20 +154,16 @@ func (tc *TemporalCorrelator) detectSinglePhase(events []*utils.APTEvent) *Attac
 	phaseCounter := make(map[string]int)
 	var relatedLogs []uint
 	ipSet := make(map[string]int)
+	var matchedPhase string
 
 	for _, event := range events {
-		eventType := strings.ToLower(strings.TrimSpace(event.EventType))
-		var matchedPhase string
-
-		for k, v := range eventTypeMapping {
-			if strings.ToLower(k) == eventType {
-				matchedPhase = v
-				break
-			}
+		// 修改为使用统一的事件类型映射
+		if phase, exists := eventTypeMapping[event.EventName]; exists {
+			matchedPhase = phase
 		}
 
 		if matchedPhase == "" {
-			log.Printf("[警告] 未识别事件类型: %s (ID:%d)", event.EventType, event.ID)
+			log.Printf("[警告] 未识别事件类型: %s (ID:%d)", event.EventName, event.ID)
 			continue
 		}
 
@@ -362,17 +365,17 @@ func (bi *BayesianInferer) GeneratePaths(phases []AttackNode) []AttackPath {
 }
 
 func isInitialAccess(event *utils.APTEvent) bool {
-	return event != nil && (event.EventType == "BruteForce" || event.EventType == "ExploitAttempt")
+	return event != nil && (event.EventName == EventBruteForce || event.EventName == EventNewConnection)
 }
 
 func isLateralMovement(event *utils.APTEvent) bool {
-	return event != nil && (event.EventType == "PortScan" || event.EventType == "SMBScan")
+	return event != nil && (event.EventName == EventPortScan || event.EventName == EventProtoAnomaly)
 }
 
 func isC2(event *utils.APTEvent) bool {
-	return event != nil && (event.EventType == "Beaconing" || event.EventType == "LongConnection")
+	return event != nil && (event.EventName == EventC2Communication || event.EventName == EventReverseConnection)
 }
 
 func isDataExfiltration(event *utils.APTEvent) bool {
-	return event != nil && (event.EventType == "DataTransfer" || event.BytesSent > 100*1024*1024)
+	return event != nil && (event.EventName == EventDataTransfer || event.BytesSent > 100*1024*1024)
 }

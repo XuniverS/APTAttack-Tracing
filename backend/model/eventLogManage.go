@@ -20,6 +20,21 @@ const (
 	zombieConnThreshold  = 100            // 肉鸡连接数阈值
 )
 
+// 新增事件类型常量定义
+const (
+	EventBruteForce          = "BruteForce"
+	EventPortScan            = "PortScan"
+	EventProtoAnomaly        = "ProtoAnomaly"
+	EventC2Communication     = "C2Communication"
+	EventDataTransfer        = "DataTransfer"
+	EventNewConnection       = "NewConnection"
+	EventReverseConnection   = "ReverseConnection"
+	EventZombieActivity      = "ZombieActivity"
+	EventMaliciousConnection = "MaliciousConnection"
+	EventZombieSpike         = "ZombieSpike"
+	EventLongConnection      = "LongConnection"
+)
+
 type DetectionResult struct {
 	Triggered     bool
 	EventName     string
@@ -179,8 +194,8 @@ func (a *NAAnalyzer) detectVictimOutbound(flows []utils.TcpLog) DetectionResult 
 	if currentRate > baseline*3 {
 		return DetectionResult{
 			Triggered:     true,
-			EventName:     "受害主机外联激增",
-			EventType:     "POST_OUTBOUND_SPIKE",
+			EventName:     EventReverseConnection,
+			EventType:     PhaseC2,
 			Description:   fmt.Sprintf("外联频率异常: 当前%d次/小时 (基线%d)", currentRate, baseline),
 			SeverityLevel: 4,
 		}
@@ -198,8 +213,8 @@ func (a *NAAnalyzer) detectDataExfiltration(flows []utils.TcpLog) DetectionResul
 	if totalSent > 100*1024*1024 {
 		return DetectionResult{
 			Triggered:     true,
-			EventName:     "可疑数据渗出",
-			EventType:     "POST_DATA_EXFIL",
+			EventName:     EventDataTransfer,
+			EventType:     PhaseDataExfiltration,
 			Description:   fmt.Sprintf("异常数据外传: %.2f MB", float64(totalSent)/1024/1024),
 			SeverityLevel: 5,
 		}
@@ -228,8 +243,8 @@ func (a *NAAnalyzer) detectMaliciousConnections(flows []utils.TcpLog) DetectionR
 	if len(hits) > 0 {
 		return DetectionResult{
 			Triggered:     true,
-			EventName:     "恶意服务器通信",
-			EventType:     "POST_MALICIOUS_CONN",
+			EventName:     EventMaliciousConnection,
+			EventType:     PhaseInitialAccess,
 			Description:   fmt.Sprintf("连接已知恶意IP: %v", hits),
 			SeverityLevel: 5, // 最高级别
 		}
@@ -255,8 +270,8 @@ func (a *NAAnalyzer) detectC2Communication(flows []utils.TcpLog) DetectionResult
 		}
 		return DetectionResult{
 			Triggered:     true,
-			EventName:     "持久化连接",
-			EventType:     "POST_C2_COMM",
+			EventName:     "LongConnection",
+			EventType:     eventTypeMapping["LongConnection"],
 			Description:   desc,
 			SeverityLevel: 4,
 		}
@@ -276,8 +291,8 @@ func (a *NAAnalyzer) detectConnectionFrequency(flows []utils.TcpLog) DetectionRe
 		if cnt > freqThreshold {
 			return DetectionResult{
 				Triggered:     true,
-				EventName:     "高频连接异常",
-				EventType:     "PRE_HIGH_FREQ",
+				EventName:     EventBruteForce,
+				EventType:     PhaseInitialAccess,
 				Description:   fmt.Sprintf("异常连接频率: %d次/小时 (时段%d:00)", cnt, h),
 				SeverityLevel: 3,
 			}
@@ -303,8 +318,8 @@ func (a *NAAnalyzer) detectNewIPConnections(flows []utils.TcpLog) DetectionResul
 	if len(newIPs) >= newIPThreshold {
 		return DetectionResult{
 			Triggered:     true,
-			EventName:     "新资产连接",
-			EventType:     "PRE_NEW_ASSET",
+			EventName:     EventNewConnection,
+			EventType:     PhaseInitialAccess,
 			Description:   fmt.Sprintf("发现%d个新IP连接: %v", len(newIPs), newIPs),
 			SeverityLevel: 2,
 		}
@@ -329,8 +344,8 @@ func (a *NAAnalyzer) detectPortScanPattern(flows []utils.TcpLog) DetectionResult
 	if len(suspiciousPorts) > 5 {
 		return DetectionResult{
 			Triggered:     true,
-			EventName:     "端口扫描行为",
-			EventType:     "PRE_PORT_SCAN",
+			EventName:     EventPortScan,
+			EventType:     PhaseLateralMovement,
 			Description:   fmt.Sprintf("疑似端口扫描，涉及%d个端口", len(suspiciousPorts)),
 			SeverityLevel: 4,
 		}
@@ -360,8 +375,8 @@ func (a *NAAnalyzer) detectProtocolAnomalies(flows []utils.TcpLog) DetectionResu
 		}
 		return DetectionResult{
 			Triggered:     true,
-			EventName:     "非常规协议通信",
-			EventType:     "PRE_PROTO_ANOMALY",
+			EventName:     EventProtoAnomaly,
+			EventType:     PhaseLateralMovement,
 			Description:   desc,
 			SeverityLevel: 3,
 		}
@@ -465,8 +480,8 @@ func (a *NAAnalyzer) detectZombieNewConnections(flows []utils.TcpLog, attackerIP
 	if len(newIPs) >= zombieNewIPThreshold {
 		return DetectionResult{
 			Triggered:     true,
-			EventName:     "肉鸡新IP连接",
-			EventType:     "NEW_CONN",
+			EventName:     EventNewConnection,
+			EventType:     PhaseInitialAccess,
 			Description:   fmt.Sprintf("连接%d个新IP: %v", len(newIPs), newIPs),
 			SeverityLevel: 4,
 		}
@@ -487,8 +502,8 @@ func (a *NAAnalyzer) detectZombieReverseConn(flows []utils.TcpLog, attackerIP st
 	if reverseConns > 3 {
 		return DetectionResult{
 			Triggered:     true,
-			EventName:     "反向连接攻击源",
-			EventType:     "REVERSE_CONN",
+			EventName:     "ZOMBIE_ReverseConnection",
+			EventType:     PhaseC2,
 			Description:   fmt.Sprintf("主动连接攻击者IP %s %d次", attackerIP, reverseConns),
 			SeverityLevel: 5,
 		}
@@ -507,8 +522,8 @@ func (a *NAAnalyzer) detectZombieActivitySpike(flows []utils.TcpLog, _ string) D
 	if current > baseline*5 {
 		return DetectionResult{
 			Triggered:     true,
-			EventName:     "肉鸡活动激增",
-			EventType:     "ACTIVITY_SPIKE",
+			EventName:     "ZOMBIE_ACTIVITY_SPIKE",
+			EventType:     PhaseC2,
 			Description:   fmt.Sprintf("连接频率异常: %d次/小时 (基线%d)", current, baseline),
 			SeverityLevel: 4,
 		}
@@ -537,8 +552,8 @@ func (a *NAAnalyzer) detectZombieMaliciousConn(flows []utils.TcpLog, _ string) D
 	if hits > 0 {
 		return DetectionResult{
 			Triggered:     true,
-			EventName:     "肉鸡恶意连接",
-			EventType:     "MALICIOUS_CONN",
+			EventName:     "ZOMBIE_MALICIOUS_CONN",
+			EventType:     PhaseC2,
 			Description:   fmt.Sprintf("连接%d次已知恶意IP", hits),
 			SeverityLevel: 5,
 		}
