@@ -1,4 +1,3 @@
-// analyzePipeline.go
 package analyzePipe
 
 import (
