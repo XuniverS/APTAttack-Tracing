@@ -16,8 +16,8 @@ const (
 	PhaseLateralMovement  = "LateralMovement"
 	PhaseC2               = "CommandAndControl"
 	PhaseDataExfiltration = "DataExfiltration"
-	PhaseDefenseEvasion   = "DefenseEvasion"
-	PhaseCredentialAccess = "CredentialAccess"
+	PhaseDefenseEvasion   = "DefenseEvasion"   // 防御阶段
+	PhaseCredentialAccess = "CredentialAccess" // 访问凭证
 )
 
 var eventTypeMapping = map[string]string{
