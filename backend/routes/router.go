@@ -9,10 +9,11 @@ import (
 func SetupRouter() *gin.Engine {
 	router := gin.Default()
 
-	// 文件上传路由
 	uploadGroup := router.Group("/api/v1")
 	{
 		uploadGroup.POST("/upload", handler.UploadHandler)
+		uploadGroup.POST("/inquire", handler.InquireHandler)
+		uploadGroup.POST("/refresh", handler.RefreshHandler)
 	}
 
 	return router

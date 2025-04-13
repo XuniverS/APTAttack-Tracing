@@ -55,24 +55,33 @@ type TcpLog struct {
 // APT事件主模型
 type APTEvent struct {
 	gorm.Model
-	StartTime     time.Time `gorm:"index"`                  // 事件开始时间
-	EndTime       time.Time `gorm:"index"`                  // 事件结束时间
-	SourceIP      string    `gorm:"type:varchar(45);index"` // 源IP
-	DestIP        string    `gorm:"type:varchar(45);index"` // 目标IP
-	EventName     string    `gorm:"type:varchar(100)"`      // 事件名称
-	EventType     string    `gorm:"type:varchar(50);index"` // 事件类型
-	SeverityLevel int       `gorm:"default:3"`              // 严重等级（1-5）
-	Description   string    `gorm:"type:text"`              // 事件描述
-	Flags         int       `json:"flags"`                  // 对应索引10标志位
-	SrcPort       int       `json:"src_port"`               // 源端口
-	DestPort      int       `json:"dest_port"`              // 目标端口
-	BytesSent     int64     `json:"bytes_sent"`             // 发送字节数
-	BytesReceived int64     `json:"bytes_received"`         // 接收字节数
-	StatusCode    int       `json:"status_code"`            // 状态码
-	Retransmits   int       `json:"retransmits"`            // 重传次数
-	Protocol      string    `json:"protocol"`               // 协议类型
+	StartTime     time.Time `gorm:"index" json:"starttime"`                 // 事件开始时间
+	EndTime       time.Time `gorm:"index" json:"endtime"`                   // 事件结束时间
+	SourceIP      string    `gorm:"type:varchar(45);index" json:"sourceip"` // 源IP
+	DestIP        string    `gorm:"type:varchar(45);index" json:"destip"`   // 目标IP
+	EventName     string    `gorm:"type:varchar(100)" json:"eventname"`     // 事件名称
+	EventType     string    `gorm:"type:varchar(50);index" json:"eventype"` // 事件类型
+	SeverityLevel int       `gorm:"default:3" json:"severitylevel"`         // 严重等级（1-5）
+	Description   string    `gorm:"type:text" json:"description"`           // 事件描述
+	Flags         int       `json:"flags"`                                  // 对应索引10标志位
+	SrcPort       int       `json:"src_port"`                               // 源端口
+	DestPort      int       `json:"dest_port"`                              // 目标端口
+	BytesSent     int64     `json:"bytes_sent"`                             // 发送字节数
+	BytesReceived int64     `json:"bytes_received"`                         // 接收字节数
+	StatusCode    int       `json:"status_code"`                            // 状态码
+	Retransmits   int       `json:"retransmits"`                            // 重传次数
+	Protocol      string    `json:"protocol"`                               // 协议类型
 }
 
 // 元数据结构示例（根据检测规则动态生成）
 type EventMetadata struct {
+}
+
+func SliceContainsString(slice []string, target string) bool {
+	for _, item := range slice {
+		if item == target {
+			return true
+		}
+	}
+	return false
 }
