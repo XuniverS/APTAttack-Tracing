@@ -615,6 +615,7 @@ func (a *NAAnalyzer) saveEvents(events []utils.APTEvent) {
 
 	tx := a.db.Begin()
 	for _, e := range events {
+		e.Model.UpdatedAt = time.Now()
 		if err := tx.Create(&e).Error; err != nil {
 			tx.Rollback()
 			log.Printf("事件保存失败: %v", err)

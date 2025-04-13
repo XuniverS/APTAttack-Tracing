@@ -10,7 +10,7 @@ import (
 
 func AnalyzePipeline() bool {
 	analyzer := model.NewAnalyzer(utils.LogDB)
-	go analyzer.RunAnalysis()
+	analyzer.RunAnalysis()
 
 	correlator := model.NewTemporalCorrelator(utils.LogDB)
 	phases, _ := correlator.DetectPhaseTransitions(time.Now().Add(-24*time.Hour), time.Now())
