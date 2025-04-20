@@ -21,7 +21,7 @@ func init() {
 	if err := utils.InitNeo4j(
 		"bolt://localhost:7687",
 		"neo4j",
-		"C0137yx."); err != nil {
+		"yourPassword"); err != nil {
 		log.Fatal(err)
 	}
 }
