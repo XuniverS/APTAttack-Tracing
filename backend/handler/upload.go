@@ -231,6 +231,7 @@ func UploadHandler(c *gin.Context) {
 		}()
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "缺少攻击日志文件"})
+		return
 	}
 
 	if tcpFiles, ok := c.Request.MultipartForm.File["tcp"]; ok {
@@ -241,6 +242,7 @@ func UploadHandler(c *gin.Context) {
 		}()
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "缺少TCP日志文件"})
+		return
 	}
 
 	go func() {
@@ -260,7 +262,7 @@ func UploadHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"errors": errors})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "文件处理完成"})
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
 // 增强类型转换函数
@@ -269,7 +271,6 @@ func safeAtoi(s string) int {
 		return 0
 	}
 
-	// 去除可能存在的冒号（针对时间字段）
 	cleanStr := strings.ReplaceAll(s, ":", "")
 
 	v, err := strconv.Atoi(cleanStr)

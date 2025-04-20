@@ -1,64 +1,77 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APT Attack Visualization</title>
+    <title>APT攻击可视化分析</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        /* 临时内联样式用于演示 */
+        .upload-box { border: 2px dashed #ccc; padding: 20px; margin: 10px; }
+        .file-item { display: flex; justify-content: space-between; padding: 5px; }
+        .modal { display: none; position: fixed; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; padding: 20px; }
+    </style>
 </head>
 <body>
 
-<div id="sidebar">
-    <h2>Log History</h2>
-    <div id="historyList"></div>
-</div>
-
 <div id="mainContent">
-    <h1>APT Attack Logs Visualization</h1>
+    <h1>APT攻击日志分析系统</h1>
 
     <div class="upload-container">
+        <!-- Attack Logs 上传区域 -->
         <div class="upload-box" id="attackUploadBox">
+            <input type="file" id="attackFileInput"
+                   multiple accept=".log,.txt"
+                   style="position: absolute; opacity: 0; width: 0; height: 0">
             <div class="upload-header">
-                <h3>Attack Logs</h3>
-                <p>Drag & Drop or Click to Upload</p>
-                <p>(.log, .txt)</p>
+                <h3>攻击日志上传</h3>
+                <p>拖放文件或点击此处上传</p>
+                <p>支持格式：.log, .txt</p>
             </div>
-            <input type="file" id="attackFileInput" multiple accept=".log,.txt"/>
             <div class="file-list" id="attackFileList"></div>
         </div>
 
+        <!-- TCP Logs 上传区域 -->
         <div class="upload-box" id="tcpUploadBox">
+            <input type="file" id="tcpFileInput"
+                   multiple accept=".log,.txt"
+                   style="position: absolute; opacity: 0; width: 0; height: 0">
             <div class="upload-header">
-                <h3>TCP Logs</h3>
-                <p>Drag & Drop or Click to Upload</p>
-                <p>(.log, .txt)</p>
+                <h3>网络日志上传</h3>
+                <p>拖放文件或点击此处上传</p>
+                <p>支持格式：.log, .txt</p>
             </div>
-            <input type="file" id="tcpFileInput" multiple accept=".log,.txt"/>
             <div class="file-list" id="tcpFileList"></div>
         </div>
     </div>
 
-    <div style="text-align: center;">
-        <button id="uploadBtn">Analyze Logs</button>
+    <div style="text-align: center; margin: 20px 0;">
+        <button id="uploadBtn" class="analysis-button">开始分析</button>
     </div>
 
-    <h2>Logs Data</h2>
     <div class="section">
-        <h2>实时日志 (最近50条)</h2>
+        <h2>实时日志监控（最近50条）</h2>
         <div id="logTable"></div>
         <div id="pagination"></div>
     </div>
+
     <div id="detailModal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
-            <h3>事件详情</h3>
+            <span class="close" style="float: right; cursor: pointer">&times;</span>
+            <h3>攻击事件详情</h3>
             <div id="modalContent"></div>
         </div>
     </div>
-    <h2>Attack Visualization</h2>
-    <canvas id="attackChart"></canvas>
+
+    <h2>
+        <a href="http://127.0.0.1:7474/browser/" target="_blank" class="neo4j-link">
+            ➤ 进入攻击关系图谱
+        </a>
+    </h2>
+    <canvas id="attackChart" width="800" height="400"></canvas>
 </div>
 
 <script src="/static/script.js"></script>
