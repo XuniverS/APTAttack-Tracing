@@ -20,7 +20,7 @@ func InitDatabase() {
 	var err error
 
 	LogDB, err = gorm.Open(mysql.New(mysql.Config{
-		DSN:                       "root:C0137yx.@tcp(127.0.0.1:3306)/log_analysis?parseTime=true",
+		DSN:                       "UserName:yourPassword@tcp(127.0.0.1:3306)/log_analysis?parseTime=true",
 		SkipInitializeWithVersion: true,
 	}), &gorm.Config{})
 	if err != nil {
