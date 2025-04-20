@@ -84,3 +84,66 @@ func quaryAptEventByID(id uint) (utils.APTEvent, error) {
 	}
 	return aptEvent, nil
 }
+
+type PageRequest struct {
+	Page     int `form:"page"`     // 当前页码（从1开始）
+	PageSize int `form:"pageSize"` // 每页数量（固定50）
+}
+
+type PaginatedResponse struct {
+	CurrentPage int              `json:"currentPage"`
+	PageSize    int              `json:"pageSize"`
+	TotalPages  int              `json:"totalPages"`
+	TotalCount  int64            `json:"totalCount"`
+	Data        []utils.APTEvent `json:"data"`
+}
+
+func QuaryAPTEvents(c *gin.Context) {
+	DB := utils.LogDB
+
+	var req PageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "invalid parameters"})
+		return
+	}
+
+	// 设置默认值
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.PageSize <= 0 {
+		req.PageSize = 50 // 默认每页50条
+	}
+
+	var events []utils.APTEvent
+	var totalCount int64
+
+	// 获取总数
+	DB.Model(&utils.APTEvent{}).Count(&totalCount)
+
+	// 执行分页查询
+	err := DB.Model(&utils.APTEvent{}).
+		Order("created_at DESC"). // 按创建时间倒序
+		Limit(req.PageSize).
+		Offset((req.Page - 1) * req.PageSize).
+		Find(&events).Error
+
+	if err != nil {
+		c.JSON(500, gin.H{"error": "database error"})
+		return
+	}
+
+	// 计算总页数
+	totalPages := int(totalCount) / req.PageSize
+	if int(totalCount)%req.PageSize != 0 {
+		totalPages++
+	}
+
+	c.JSON(200, PaginatedResponse{
+		CurrentPage: req.Page,
+		PageSize:    req.PageSize,
+		TotalPages:  totalPages,
+		TotalCount:  totalCount,
+		Data:        events,
+	})
+}

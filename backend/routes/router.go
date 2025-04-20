@@ -14,6 +14,7 @@ func SetupRouter() *gin.Engine {
 		apiGroup.POST("/upload", handler.UploadHandler)
 		apiGroup.POST("/inquire", handler.InquireHandler)
 		apiGroup.GET("/refresh", handler.RefreshHandler)
+		apiGroup.POST("/quaryAPT", handler.QuaryAPTEvents)
 	}
 
 	return router

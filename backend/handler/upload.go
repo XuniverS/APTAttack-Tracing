@@ -271,7 +271,6 @@ func safeAtoi(s string) int {
 		return 0
 	}
 
-	// 去除可能存在的冒号（针对时间字段）
 	cleanStr := strings.ReplaceAll(s, ":", "")
 
 	v, err := strconv.Atoi(cleanStr)
