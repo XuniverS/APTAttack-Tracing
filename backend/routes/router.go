@@ -9,11 +9,11 @@ import (
 func SetupRouter() *gin.Engine {
 	router := gin.Default()
 
-	uploadGroup := router.Group("/api/v1")
+	apiGroup := router.Group("/api/v1")
 	{
-		uploadGroup.POST("/upload", handler.UploadHandler)
-		uploadGroup.POST("/inquire", handler.InquireHandler)
-		uploadGroup.POST("/refresh", handler.RefreshHandler)
+		apiGroup.POST("/upload", handler.UploadHandler)
+		apiGroup.POST("/inquire", handler.InquireHandler)
+		apiGroup.GET("/refresh", handler.RefreshHandler)
 	}
 
 	return router

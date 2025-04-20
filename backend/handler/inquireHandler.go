@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 func errorResponse(c *gin.Context, code int, message string) {
@@ -12,19 +13,30 @@ func errorResponse(c *gin.Context, code int, message string) {
 }
 
 func RefreshHandler(c *gin.Context) {
-	aptEvents, err := quaryAll()
+	// 获取分页参数
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset := (page - 1) * limit
+
+	aptEvents, total, err := quaryAll(offset, limit)
 	if err != nil {
 		log.Printf("查询失败: %v", err)
 		errorResponse(c, http.StatusInternalServerError, "数据获取失败")
 		return
 	}
 
-	c.JSON(http.StatusOK, aptEvents)
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"data": gin.H{
+			"total":  total,
+			"events": aptEvents,
+		},
+	})
 }
 
 func InquireHandler(c *gin.Context) {
 	var queryParams struct {
-		ID uint `json:"id" binding:"required"` // 要求必须包含ID
+		ID uint `json:"id" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&queryParams); err != nil {
@@ -46,15 +58,20 @@ func InquireHandler(c *gin.Context) {
 	})
 }
 
-func quaryAll() ([]utils.APTEvent, error) {
+func quaryAll(offset, limit int) ([]utils.APTEvent, int64, error) {
 	var aptEvents []utils.APTEvent
+	var total int64
 	DB := utils.LogDB
 
-	result := DB.Order("created_at desc").Limit(50).Find(&aptEvents) // 查询最新50条记录
+	// 获取总数
+	DB.Model(&utils.APTEvent{}).Count(&total)
+
+	// 分页查询
+	result := DB.Order("created_at desc").Offset(offset).Limit(limit).Find(&aptEvents)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, 0, result.Error
 	}
-	return aptEvents, nil
+	return aptEvents, total, nil
 }
 
 func quaryAptEventByID(id uint) (utils.APTEvent, error) {

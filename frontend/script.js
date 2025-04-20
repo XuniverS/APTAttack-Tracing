@@ -3,34 +3,46 @@ $(document).ready(function() {
     let files = { attack: [], tcp: [] };
     let currentPage = 1;
     const pageSize = 50;
-    let refreshInterval = 1000;
 
+    // 初始化上传区域（修改后）
     function initUploadBox(boxId, type) {
         const $box = $(`#${boxId}`);
         const $input = $(`#${type}FileInput`);
         const $list = $(`#${type}FileList`);
 
-        $box.on('click', function(e) {
-            if (!$(e.target).closest('.file-item').length) $input.click();
+        $input.on('click', function(e) {
+            e.stopPropagation();
         });
 
+        // 点击容器触发文件选择
+        $box.on('click', function(e) {
+            // 只有当点击目标不是文件项且不是输入框本身时触发
+            if (!$(e.target).closest('.file-item').length &&
+                !$(e.target).is($input)) {
+                $input[0].click();
+            }
+        });
+
+        // 拖放处理（保持原逻辑不变）
         $box.on('dragover', function(e) {
             e.preventDefault();
             $box.addClass('highlight');
-        }).on('dragleave', function(e) {
+        }).on('dragleave drop', function(e) {
             e.preventDefault();
             $box.removeClass('highlight');
         }).on('drop', function(e) {
-            e.preventDefault();
-            $box.removeClass('highlight');
-            handleFiles(e.originalEvent.dataTransfer.files, type);
+            const dt = e.originalEvent.dataTransfer;
+            handleFiles(dt.files, type);
         });
 
+        // 文件选择变化
         $input.on('change', function(e) {
             handleFiles(this.files, type);
         });
 
-        $list.on('click', '.remove-file', function() {
+        // 删除文件（添加阻止冒泡）
+        $list.on('click', '.remove-file', function(e) {
+            e.stopPropagation();
             const index = $(this).closest('.file-item').index();
             files[type].splice(index, 1);
             updateFileList(type);
@@ -51,6 +63,10 @@ $(document).ready(function() {
         files[type] = [...files[type], ...validFiles];
         updateFileList(type);
     }
+
+    initUploadBox('attackUploadBox', 'attack');
+    initUploadBox('tcpUploadBox', 'tcp');
+
 
     function updateFileList(type) {
         const $list = $(`#${type}FileList`);
@@ -76,38 +92,45 @@ $(document).ready(function() {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    // 初始化文件上传区域
-    initUploadBox('attackUploadBox', 'attack');
-    initUploadBox('tcpUploadBox', 'tcp');
 
     // 上传按钮点击事件
     $('#uploadBtn').on('click', async function() {
         const allFiles = [...files.attack, ...files.tcp];
         if (allFiles.length === 0) {
-            alert('Please select files to upload');
+            alert('请先选择要上传的文件');
             return;
         }
 
         try {
-            $(this).prop('disabled', true).text('Analyzing...');
+            $(this).prop('disabled', true).text('分析中...');
             const formData = new FormData();
-            files.attack.forEach(file => formData.append('attack', file));
-            files.tcp.forEach(file => formData.append('tcp', file));
+
+            // 修正字段名称为数组格式
+            files.attack.forEach(file => {
+                formData.append("attack", file);
+            });
+            files.tcp.forEach(file => {
+                formData.append("tcp", file);
+            });
 
             const response = await fetch('/api/v1/upload', {
                 method: 'POST',
                 body: formData
             });
 
-            if (!response.ok) throw new Error('Upload failed');
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.message || '上传失败');
+            }
+
             const result = await response.json();
             handleUploadSuccess(result);
 
         } catch (error) {
-            console.error('Upload error:', error);
-            alert('Error uploading files: ' + error.message);
+            console.error('上传错误:', error);
+            alert('上传失败: ' + error.message);
         } finally {
-            $(this).prop('disabled', false).text('Analyze Logs');
+            $(this).prop('disabled', false).text('分析日志');
         }
     });
 
